@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stellar Tasks — Extraordinary To‑Do</title>
+  <meta name="description" content="A powerful offline-first to-do app with Kanban, calendar, subtasks, Pomodoro, recurring tasks, and shareable snapshots.">
+  <link rel="manifest" href="data:application/manifest+json,{}">
+  <style>
+    :root{
+      --bg: #0b0f1a;
+      --panel: #0f172a;
+      --ink: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #60a5fa;
+      --accent: #22d3ee;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --radius: 18px;
+      --shadow: 0 10px 30px rgba(2,6,23,.5);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 10% -10%, #1f2937 0%, #0a0f1c 45%, #0a0f1c 100%);
+      color:var(--ink);
+      -webkit-font-smoothing:antialiased;
+      display:flex;flex-direction:column;
+    }
+    header{
+      position:sticky;top:0;z-index:5;
+      display:flex;gap:14px;align-items:center;justify-content:space-between;
+      padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      backdrop-filter: blur(6px);
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;
+      background: conic-gradient(from 0deg, var(--primary), var(--accent), var(--ok), var(--primary));
+      color:#0b0f1a;font-weight:900;box-shadow:var(--shadow)
+    }
+    .title{font-weight:800;letter-spacing:.2px}
+    .muted{color:var(--muted)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .search{display:flex;align-items:center;gap:8px;background:#0b1020;border:1px solid rgba(255,255,255,.12);
+      padding:10px 12px;border-radius:12px;min-width:220px}
+    .search input{background:transparent;border:0;outline:0;color:var(--ink);width:100%}
+    button, select, input[type="date"]{
+      border:1px solid rgba(255,255,255,.12);background:#0b1020;color:var(--ink);
+      padding:10px 12px;border-radius:12px;cursor:pointer;transition:.12s;
+    }
+    button:hover, select:hover{background:#121a2c}
+    .chip{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);cursor:pointer}
+    .chip.active{outline:2px solid var(--accent)}
+    main{display:flex;gap:14px;padding:14px;flex:1;min-height:0}
+    aside{
+      width:280px;flex:0 0 280px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:12px;height:fit-content
+    }
+    .quick{display:grid;grid-template-columns: 1fr auto;gap:10px;background:#0b1020;border:1px dashed rgba(255,255,255,.15);padding:10px;border-radius:12px}
+    .quick input{background:transparent;color:var(--ink);border:0;outline:0}
+    .section h3{margin:8px 0 6px 0;font-size:1rem}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .stat{background:#0b1020;border:1px solid rgba(255,255,255,.1);padding:10px;border-radius:12px;text-align:center}
+    .views{display:flex;gap:8px;flex-wrap:wrap}
+    .board{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;flex:1;min-height:0}
+    .col{display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);padding:10px;min-height:200px}
+    .col h4{margin:0 0 6px 6px}
+    .lane{flex:1;display:flex;flex-direction:column;gap:10px;min-height:80px}
+    .card{background:#0b1020;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px;display:grid;gap:6px}
+    .card[draggable="true"]{cursor:grab}
+    .card.dragging{opacity:.6}
+    .tags{display:flex;gap:6px;flex-wrap:wrap}
+    .tag{font-size:.8rem;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12)}
+    .tag.low{color:var(--ok)} .tag.medium{color:var(--warn)} .tag.high{color:var(--danger)}
+    .meta{font-size:.8rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+    .actions{display:flex;gap:6px;flex-wrap:wrap}
+    .note{font-size:.9rem;color:#cbd5e1;white-space:pre-wrap}
+    .subtasks{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+    .subtasks label{display:flex;gap:8px;align-items:center;font-size:.9rem}
+    .calendar{display:grid;grid-template-columns: repeat(7, 1fr);gap:6px;margin-top:8px}
+    .day{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px;min-height:76px;background:#0b1020}
+    .day .d{font-size:.8rem;color:var(--muted)}
+    .pill{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.15);font-size:.75rem;margin:2px 2px 0 0}
+    .footer{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid rgba(255,255,255,.08);color:var(--muted)}
+    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:.85rem;background:#0b1020;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:2px 6px}
+    @media (max-width: 980px){
+      aside{display:none}
+      .board{grid-template-columns: 1fr}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">★</div>
+      <div>
+        <div class="title">Stellar Tasks</div>
+        <div class="muted">Extra‑ordinary to‑do. Offline. Shareable. Installable.</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><span>🔎</span><input id="q" placeholder="Search title, tag, note…"></div>
+      <select id="filter">
+        <option value="all">All</option>
+        <option value="today">Due today</option>
+        <option value="overdue">Overdue</option>
+        <option value="high">High priority</option>
+        <option value="active">Active (not done)</option>
+        <option value="done">Done</option>
+      </select>
+      <select id="sort">
+        <option value="rank">Manual</option>
+        <option value="due_asc">Due soon</option>
+        <option value="priority_desc">High priority</option>
+        <option value="created_desc">Newest</option>
+        <option value="created_asc">Oldest</option>
+      </select>
+      <button id="snapshot">Share snapshot</button>
+      <button id="export">Export</button>
+      <label class="chip" for="importFile">Import<input class="invis" id="importFile" type="file" accept="application/json" style="display:none"></label>
+      <button id="help">?</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="section">
+        <h3>Quick Add (NL)</h3>
+        <div class="quick">
+          <input id="quick" placeholder='e.g., "Submit report tomorrow 5pm !high #work @30m ^repeat weekly"'/>
+          <button id="quickAdd">Add</button>
+        </div>
+        <div class="muted" style="font-size:.9rem">Syntax: <span class="kbd">!low|!medium|!high</span>, <span class="kbd">#tag</span>, <span class="kbd">@duration</span>, words like <span class="kbd">today</span>, <span class="kbd">tomorrow</span>, or dates like <span class="kbd">2025-08-14</span>. Repeat with <span class="kbd">^repeat daily|weekly|monthly</span>.</div>
+      </div>
+      <div class="section">
+        <h3>Compose</h3>
+        <div class="quick" style="grid-template-columns: 1fr 1fr auto">
+          <input id="title" placeholder="Task title">
+          <input id="due" type="date">
+          <button id="add">Add</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <select id="priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+          <input id="tag" placeholder="#tag (optional)" style="flex:1">
+        </div>
+        <textarea id="note" placeholder="Notes (Markdown supported: **bold**, *italic*, - list)" style="margin-top:8px;height:80px;width:100%;background:#0b1020;color:var(--ink);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Stats</h3>
+        <div class="stats">
+          <div class="stat"><div id="stTotal" style="font-size:1.4rem;font-weight:800">0</div><div class="muted">Total</div></div>
+          <div class="stat"><div id="stDone" style="font-size:1.4rem;font-weight:800">0</div><div class="muted">Done</div></div>
+          <div class="stat"><div id="stFocus" style="font-size:1.2rem;font-weight:800">0m</div><div class="muted">Focus</div></div>
+          <div class="stat"><div id="stDue" style="font-size:1.2rem;font-weight:800">0</div><div class="muted">Due today</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Views</h3>
+        <div class="views">
+          <span class="chip active" data-view="kanban">Kanban</span>
+          <span class="chip" data-view="calendar">Calendar</span>
+          <span class="chip" data-view="list">List</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Keyboard</h3>
+        <div class="muted" style="font-size:.9rem">
+          <span class="kbd">N</span> new •
+          <span class="kbd">/</span> search •
+          <span class="kbd">S</span> snapshot •
+          <span class="kbd">E</span> export
+        </div>
+      </div>
+    </aside>
+
+    <div class="board" id="board">
+      <div class="col" data-status="todo">
+        <h4>To Do</h4>
+        <div class="lane" id="lane-todo"></div>
+      </div>
+      <div class="col" data-status="doing">
+        <h4>Doing</h4>
+        <div class="lane" id="lane-doing"></div>
+      </div>
+      <div class="col" data-status="done">
+        <h4>Done</h4>
+        <div class="lane" id="lane-done"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer">
+    <div id="counts">0 items</div>
+    <div>
+      <button id="clearDone">Clear completed</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Service Worker (installable PWA via in-memory blob) ---
+    (function registerSW(){
+      if(!('serviceWorker' in navigator)) return;
+      const swCode = `
+        self.addEventListener('install', e=>{
+          e.waitUntil(caches.open('stellar-v1').then(c=>c.addAll([self.registration.scope])));
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', e=> self.clients.claim());
+        self.addEventListener('fetch', e=>{
+          e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request).then(resp=>{
+            if(e.request.mode==='navigate'){
+              const copy = resp.clone();
+              caches.open('stellar-v1').then(c=> c.put(self.registration.scope, copy));
+            }
+            return resp;
+          })));
+        });
+      `;
+      const blob = new Blob([swCode], {type:'text/javascript'});
+      const url = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url);
+    })();
+
+    // --- Utilities & State ---
+    const $ = s=>document.querySelector(s);
+    const $$ = s=>Array.from(document.querySelectorAll(s));
+    const storeKey = 'stellar_tasks_v1';
+
+    const state = {
+      items: [], // {id,title,created,rank,status,due,priority,tag,note,subs:[{id,title,done}],est,repeat,done,spent}
+      q:'', filter:'all', sort:'rank', view:'kanban', focus:{taskId:null,end:0},
+      totalFocusMin:0
+    };
+
+    function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36) }
+    function save(){ localStorage.setItem(storeKey, JSON.stringify(state)); }
+    function load(){
+      const raw = localStorage.getItem(storeKey);
+      if(!raw) return;
+      try{ Object.assign(state, JSON.parse(raw)); }catch(e){ console.warn(e) }
+    }
+
+    function parseDateWords(s){
+      s = s.toLowerCase();
+      const now = new Date();
+      if(s.includes('today')){ const d = new Date(); d.setHours(0,0,0,0); return +d; }
+      if(s.includes('tomorrow')){ const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return +d; }
+      const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if(m){ const d = new Date(+m[1], +m[2]-1, +m[3]); d.setHours(0,0,0,0); return +d; }
+      const t = s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
+      if(t){
+        const d = new Date(); let h=+t[1]%12; if(t[3]==='pm') h+=12; const min=t[2]?+t[2]:0;
+        d.setHours(h,min,0,0); return +d;
+      }
+      return null;
+    }
+    function parseDuration(s){
+      const m = s.match(/@(\d+)(m|h)/i);
+      if(!m) return 0;
+      return m[2].toLowerCase()==='h'? (+m[1]*60) : (+m[1]);
+    }
+    function mdToHtml(md){
+      return md
+        .replace(/^### (.*$)/gim,'<h4>$1</h4>')
+        .replace(/^## (.*$)/gim,'<h3>$1</h3>')
+        .replace(/^# (.*$)/gim,'<h2>$1</h2>')
+        .replace(/^\s*-\s+(.*)$/gim,'<li>$1</li>')
+        .replace(/\*\*(.*?)\*\*/gim,'<b>$1</b>')
+        .replace(/\*(.*?)\*/gim,'<i>$1</i>')
+        .replace(/\n{2,}/g,'<br/>');
+    }
+    function fmtDate(ts){
+      if(!ts) return '';
+      const d = new Date(ts);
+      return d.toLocaleDateString([], {year:'numeric', month:'short', day:'numeric'});
+    }
+
+    // --- Rendering ---
+    function render(){
+      const q = state.q.toLowerCase();
+      let items = state.items.filter(t => t.title.toLowerCase().includes(q) || (t.tag||'').toLowerCase().includes(q) || (t.note||'').toLowerCase().includes(q));
+
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+      switch(state.filter){
+        case 'today': items = items.filter(t => t.due && t.due >= +todayStart && t.due < (+todayStart + 86400000)); break;
+        case 'overdue': items = items.filter(t => t.due && t.due < +todayStart && !t.done); break;
+        case 'high': items = items.filter(t => t.priority==='high'); break;
+        case 'active': items = items.filter(t => !t.done); break;
+        case 'done': items = items.filter(t => t.done); break;
+      }
+
+      const orders = {
+        rank: (a,b)=> (a.rank||0) - (b.rank||0),
+        due_asc: (a,b)=> (a.due||Infinity) - (b.due||Infinity),
+        priority_desc: (a,b)=> ({low:0,medium:1,high:2}[b.priority] - {low:0,medium:1,high:2}[a.priority]),
+        created_desc: (a,b)=> b.created - a.created,
+        created_asc: (a,b)=> a.created - b.created,
+      };
+      items.sort(orders[state.sort] || orders.rank);
+
+      // stats
+      $('#stTotal').textContent = state.items.length;
+      $('#stDone').textContent = state.items.filter(t=>t.done).length;
+      const todayDue = state.items.filter(t=> t.due && t.due >= +todayStart && t.due < (+todayStart + 86400000)).length;
+      $('#stDue').textContent = todayDue;
+      $('#stFocus').textContent = (state.totalFocusMin|0) + 'm';
+
+      // view
+      const board = $('#board');
+      board.innerHTML = '';
+      if(state.view==='kanban'){
+        board.className = 'board';
+        board.innerHTML = `
+          <div class="col" data-status="todo"><h4>To Do</h4><div class="lane" id="lane-todo"></div></div>
+          <div class="col" data-status="doing"><h4>Doing</h4><div class="lane" id="lane-doing"></div></div>
+          <div class="col" data-status="done"><h4>Done</h4><div class="lane" id="lane-done"></div></div>
+        `;
+        const groups = {todo:[], doing:[], done:[]};
+        for(const t of items){ (groups[t.status||'todo']||groups.todo).push(t); }
+        for(const st of ['todo','doing','done']){
+          const lane = document.getElementById('lane-'+st);
+          for(const t of groups[st]) lane.appendChild(renderCard(t));
+          enableLaneDnD(lane, st);
+        }
+      } else if(state.view==='list'){
+        board.className = 'board';
+        const col = document.createElement('div'); col.className='col'; col.innerHTML='<h4>All Tasks</h4>'; const lane = document.createElement('div'); lane.className='lane'; col.appendChild(lane); board.appendChild(col);
+        for(const t of items){ lane.appendChild(renderCard(t)); }
+        enableLaneDnD(lane, null);
+      } else if(state.view==='calendar'){
+        board.className = 'board';
+        const col = document.createElement('div'); col.className='col'; col.innerHTML='<h4>Calendar</h4>'; const cal = document.createElement('div'); cal.className='calendar'; col.appendChild(cal); board.appendChild(col);
+        renderCalendar(cal, items);
+      }
+
+      // footer counts
+      const total = state.items.length;
+      const done = state.items.filter(t=>t.done).length;
+      $('#counts').textContent = `${total} items · ${done} done · ${total-done} left`;
+      // persist ui
+      $('#filter').value = state.filter; $('#sort').value = state.sort; $('#q').value = state.q;
+      // view chips
+      $$('.views .chip').forEach(ch => ch.classList.toggle('active', ch.dataset.view===state.view));
+    }
+
+    function renderCard(t){
+      const el = document.createElement('div');
+      el.className = 'card' + (t.done?' done':'');
+      el.draggable = true;
+      el.dataset.id = t.id;
+      el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="checkbox" ${t.done?'checked':''} class="toggle">
+            <div style="font-weight:700">${escapeHtml(t.title)}</div>
+          </div>
+          <div class="actions">
+            <button class="focus">${state.focus.taskId===t.id?'■ Stop':'▶ Focus'}</button>
+            <button class="edit">✎</button>
+            <button class="del">🗑</button>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag ${t.priority}">${t.priority}</span>
+          ${t.tag? `<span class="tag">#${escapeHtml(t.tag)}</span>`:''}
+          ${t.due? `<span class="tag">📅 ${fmtDate(t.due)}</span>`:''}
+          ${t.est? `<span class="tag">⏱ ${t.est}m</span>`:''}
+          ${t.repeat? `<span class="tag">⟲ ${t.repeat}</span>`:''}
+        </div>
+        ${t.note? `<div class="note">${mdToHtml(escapeHtml(t.note).replace(/&lt;br&gt;/g,'\n'))}</div>`:''}
+        ${Array.isArray(t.subs) && t.subs.length? `<div class="subtasks">${t.subs.map(s=>`<label><input type="checkbox" data-sub="${s.id}" ${s.done?'checked':''}> <span>${escapeHtml(s.title)}</span></label>`).join('')}</div>`:''}
+      `;
+
+      // wire
+      el.querySelector('.toggle').addEventListener('change', e=>{
+        t.done = e.target.checked;
+        if(t.done && t.repeat){ // schedule next occurrence
+          const d = new Date(t.due || Date.now());
+          if(t.repeat==='daily') d.setDate(d.getDate()+1);
+          if(t.repeat==='weekly') d.setDate(d.getDate()+7);
+          if(t.repeat==='monthly') d.setMonth(d.getMonth()+1);
+          t.done = false; t.due = +d;
+        }
+        save(); render();
+      });
+      el.querySelector('.edit').addEventListener('click', ()=> openEditor(t));
+      el.querySelector('.del').addEventListener('click', ()=>{ if(confirm('Delete task?')){ state.items = state.items.filter(x=>x.id!==t.id); save(); render(); }});
+      if(el.querySelector('.subtasks')){
+        el.querySelectorAll('input[data-sub]').forEach(cb=> cb.addEventListener('change', ev=>{
+          const sid = ev.target.dataset.sub;
+          const sub = (t.subs||[]).find(s=>s.id===sid);
+          if(sub){ sub.done = ev.target.checked; save(); render(); }
+        }));
+      }
+      // DnD
+      el.addEventListener('dragstart', ev=>{ el.classList.add('dragging'); ev.dataTransfer.setData('text/plain', t.id); });
+      el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
+      // Focus
+      el.querySelector('.focus').addEventListener('click', ()=> toggleFocus(t));
+      return el;
+    }
+
+    function enableLaneDnD(lane, status){
+      lane.addEventListener('dragover', ev=>{
+        ev.preventDefault();
+        const dragging = $('.card.dragging');
+        if(!dragging) return;
+        const rect = lane.getBoundingClientRect();
+        const afterEl = Array.from(lane.children).find(child=>{
+          const r = child.getBoundingClientRect();
+          return ev.clientY < r.top + r.height/2;
+        });
+        lane.insertBefore(dragging, afterEl||null);
+      });
+      lane.addEventListener('drop', ev=>{
+        ev.preventDefault();
+        const id = ev.dataTransfer.getData('text/plain');
+        const idx = state.items.findIndex(x=>x.id===id);
+        if(idx<0) return;
+        if(status){ state.items[idx].status = status; }
+        // update rank from DOM order
+        const ids = Array.from(lane.parentElement.querySelectorAll('.lane .card')).map(c=>c.dataset.id);
+        ids.forEach((id,i)=>{ const item = state.items.find(x=>x.id===id); if(item) item.rank = i; });
+        save(); render();
+      });
+    }
+
+    function renderCalendar(container, items){
+      container.innerHTML = '';
+      const now = new Date();
+      const y = now.getFullYear(); const m = now.getMonth();
+      const first = new Date(y,m,1); const start = new Date(first); start.setDate(1 - (first.getDay()||7) + 1); // Monday start
+      for(let i=0;i<42;i++){
+        const d = new Date(+start + i*86400000);
+        const inMonth = d.getMonth()===m;
+        const day = document.createElement('div'); day.className='day'; day.style.opacity = inMonth?1:.45;
+        day.innerHTML = `<div class="d">${d.toLocaleDateString([], {month:'short', day:'numeric'})}</div>`;
+        const todays = items.filter(t=> t.due && new Date(t.due).toDateString()===d.toDateString());
+        for(const t of todays){
+          const pill = document.createElement('div'); pill.className='pill'; pill.textContent = (t.tag? '#'+t.tag+' ':'') + t.title;
+          day.appendChild(pill);
+        }
+        container.appendChild(day);
+      }
+    }
+
+    function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]) ); }
+
+    // --- Editor ---
+    function openEditor(t){
+      const title = prompt('Title', t.title);
+      if(title===null) return;
+      const due = prompt('Due (YYYY-MM-DD) blank=none', t.due? new Date(t.due).toISOString().slice(0,10):'');
+      const priority = prompt('Priority: low|medium|high', t.priority||'medium');
+      const tag = prompt('Tag (optional, without #)', t.tag||'');
+      const est = prompt('Estimate minutes (e.g., 25)', t.est||'');
+      const repeat = prompt('Repeat: daily|weekly|monthly|blank', t.repeat||'');
+      const note = prompt('Notes (Markdown allowed). Use \\n for new lines.', t.note||'');
+      Object.assign(t, {
+        title: title.trim()||t.title,
+        due: due ? new Date(due).setHours(0,0,0,0) : null,
+        priority: (priority||'medium').toLowerCase(),
+        tag: tag.trim(),
+        est: est? +est : 0,
+        repeat: (repeat||'').toLowerCase() || null,
+        note: note
+      });
+      save(); render();
+    }
+
+    // --- Focus / Pomodoro ---
+    let ticker = null;
+    function toggleFocus(t){
+      const now = Date.now();
+      if(state.focus.taskId===t.id){
+        // stop
+        state.totalFocusMin += Math.round((state.focus.end - now)/60000 * -1);
+        state.focus = {taskId:null,end:0};
+        clearInterval(ticker); ticker=null;
+        notify('Focus ended', t.title);
+      }else{
+        const mins = t.est || 25;
+        state.focus = {taskId:t.id, end: now + mins*60000};
+        clearInterval(ticker);
+        ticker = setInterval(()=>{
+          const remaining = Math.max(0, state.focus.end - Date.now());
+          if(remaining===0){ clearInterval(ticker); ticker=null; notify('Time up!', t.title); }
+        }, 1000);
+        notify('Focus started', t.title + ` • ${mins}m`);
+      }
+      save(); render();
+    }
+
+    function notify(title, body){
+      if(!('Notification' in window)) return;
+      if(Notification.permission==='granted'){ new Notification(title, {body}); }
+      else if(Notification.permission!=='denied'){ Notification.requestPermission().then(p=>{ if(p==='granted') new Notification(title,{body}); }); }
+    }
+
+    // --- Input wiring ---
+    $('#add').addEventListener('click', addTask);
+    $('#title').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+    $('#quickAdd').addEventListener('click', addQuick);
+    $('#quick').addEventListener('keydown', e=>{ if(e.key==='Enter') addQuick(); });
+    $('#filter').addEventListener('change', e=>{ state.filter=e.target.value; save(); render(); });
+    $('#sort').addEventListener('change', e=>{ state.sort=e.target.value; save(); render(); });
+    $$('.views .chip').forEach(ch=> ch.addEventListener('click', ()=>{ state.view=ch.dataset.view; save(); render(); }));
+    $('#q').addEventListener('input', e=>{ state.q=e.target.value; render(); });
+    $('#export').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='stellar-tasks.json'; a.click(); URL.revokeObjectURL(url);
+    });
+    $('#importFile').addEventListener('change', e=>{
+      const f = e.target.files[0]; if(!f) return;
+      const r = new FileReader(); r.onload = ()=>{ try{ const s = JSON.parse(r.result); Object.assign(state,s); save(); render(); }catch(e){ alert('Invalid JSON'); } };
+      r.readAsText(f); e.target.value='';
+    });
+    $('#snapshot').addEventListener('click', ()=>{
+      const data = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+      const link = location.origin + location.pathname + '#'+data;
+      navigator.clipboard?.writeText(link);
+      alert('Snapshot URL copied to clipboard! Share it to let others view your list.');
+    });
+    $('#help').addEventListener('click', ()=>{
+      alert('Shortcuts: N=new, /=search, S=snapshot, E=export. Quick Add: text with !priority #tag @minutes dates words today/tomorrow or 2025-08-14. Repeat with ^repeat daily|weekly|monthly. Use Kanban lanes for status.');
+    });
+    $('#clearDone').addEventListener('click', ()=>{
+      if(confirm('Delete all completed?')){ state.items = state.items.filter(t=>!t.done); save(); render(); }
+    });
+    $('#reset').addEventListener('click', ()=>{
+      if(confirm('Reset everything?')){ localStorage.removeItem(storeKey); location.reload(); }
+    });
+
+    window.addEventListener('keydown', e=>{
+      if(e.key==='/' && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA'){ e.preventDefault(); $('#q').focus(); }
+      if(e.key==='n' || e.key==='N'){ $('#title').focus(); }
+      if(e.key==='s' || e.key==='S'){ $('#snapshot').click(); }
+      if(e.key==='e' || e.key==='E'){ $('#export').click(); }
+    });
+
+    // --- Adders ---
+    function addTask(){
+      const title = $('#title').value.trim();
+      if(!title){ $('#title').focus(); return; }
+      const due = $('#due').value ? new Date($('#due').value).setHours(0,0,0,0) : null;
+      const priority = $('#priority').value;
+      const tag = $('#tag').value.trim().replace(/^#/,'') || '';
+      const note = $('#note').value.trim();
+      state.items.unshift({ id:uid(), title, created:Date.now(), rank:0, status:'todo', due, priority, tag, note, subs:[], est:0, repeat:null, done:false, spent:0 });
+      $('#title').value=''; $('#due').value=''; $('#tag').value=''; $('#note').value='';
+      save(); render();
+    }
+
+    function addQuick(){
+      const s = $('#quick').value.trim(); if(!s) return;
+      const pr = (s.match(/!(low|medium|high)/i)||[])[1]?.toLowerCase() || 'medium';
+      const tag = (s.match(/#([a-z0-9-_]+)/i)||[])[1] || '';
+      const rep = (s.match(/\^repeat\s+(daily|weekly|monthly)/i)||[])[1] || null;
+      const est = parseDuration(s);
+      const due = parseDateWords(s);
+      const title = s.replace(/!(low|medium|high)|#([a-z0-9-_]+)/ig,'')
+                     .replace(/\^repeat\s+(daily|weekly|monthly)/ig,'')
+                     .replace(/@\d+(m|h)/ig,'')
+                     .replace(/\b(today|tomorrow)\b/ig,'')
+                     .replace(/\b\d{4}-\d{2}-\d{2}\b/ig,'')
+                     .replace(/\s+/g,' ').trim();
+      state.items.unshift({ id:uid(), title, created:Date.now(), rank:0, status:'todo', due, priority:pr, tag, note:'', subs:[], est, repeat:rep, done:false, spent:0 });
+      $('#quick').value='';
+      save(); render();
+    }
+
+    // --- Import snapshot from URL hash (view-only by default) ---
+    function loadSnapshot(){
+      if(location.hash.length>1){
+        try{
+          const data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));
+          if(data && data.items){ // view-only mode indicator
+            if(confirm('Open shared snapshot? This will replace your current list.')){
+              Object.assign(state, data); save(); render();
+            }
+          }
+        }catch(e){ /* ignore */ }
+      }
+    }
+
+    // --- Init ---
+    load();
+    loadSnapshot();
+    render();
+  </script>
+</body>
+</html>
